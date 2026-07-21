@@ -1,0 +1,9 @@
+fact_table,fact_key,dimension_table,dimension_key,join_predicate,expected_cardinality,dimension_is_scd,evidence,status
+billing.usage,workspace_id,access.workspaces_latest,workspace_id,workspace_id,N:1,no,"workspaces_latest is a slow-changing dim of workspace metadata; one current row per workspace",candidate
+billing.usage,sku_name,billing.list_prices,sku_name,"sku_name (+ price validity window on usage_start_time)",N:1,yes,"list_prices is a historical price log keyed by sku_name with price_start/end times; needs point-in-time on usage time",candidate
+billing.usage,usage_metadata.cluster_id,compute.clusters,cluster_id,"workspace_id + cluster_id (+ SCD resolution)",N:1,yes,"clusters is SCD (has change_time); cluster_id unique within workspace",candidate
+billing.usage,usage_metadata.warehouse_id,compute.warehouses,warehouse_id,"workspace_id + warehouse_id (+ SCD resolution)",N:1,yes,"warehouses holds full config history over time",candidate
+billing.usage,usage_metadata.instance_pool_id,compute.instance_pools,instance_pool_id,"workspace_id + instance_pool_id (+ SCD resolution)",N:1,yes,"instance_pools is SCD dim of pool configs",candidate
+billing.usage,usage_metadata.job_id,lakeflow.jobs,job_id,"workspace_id + job_id (+ SCD resolution)",N:1,yes,"jobs SCD; comment: job_id only unique within a single workspace",candidate
+billing.usage,usage_metadata.dlt_pipeline_id,lakeflow.pipelines,pipeline_id,"workspace_id + pipeline_id (+ SCD resolution)",N:1,yes,"pipelines dim keyed by pipeline_id",candidate
+billing.usage,usage_metadata.endpoint_id,serving.served_entities,endpoint_id,"workspace_id + endpoint_id",N:1,yes,"served_entities is SCD; also has served_entity_id as its own unique PK",candidate
