@@ -1,0 +1,39 @@
+full_name,role,grain,shared_dimension,notes
+billing.usage,fact,one billable usage record,,"DONE - model built. Central cost/usage fact"
+lakeflow.job_run_timeline,fact,one job run,,job execution timeline
+lakeflow.job_task_run_timeline,fact,one job task run,,task-level execution timeline
+lakeflow.pipeline_update_timeline,fact,one pipeline update,,pipeline (DLT) update timeline
+query.history,fact,one query execution,,SQL/serverless query performance
+access.audit,fact,one audit event,,broad audit log
+access.column_lineage,fact,one column read/write event,,lineage at column grain
+access.table_lineage,fact,one table read/write event,,lineage at table grain
+access.assistant_events,fact,one assistant/Genie message,,
+access.clean_room_events,fact,one clean room event,,
+access.inbound_network,fact,one denied inbound access event,,
+access.outbound_network,fact,one denied outbound access event,,
+compute.node_timeline,fact,one node-minute utilization record,,compute utilization metrics
+compute.instance_events,fact,one instance state transition,,
+compute.warehouse_events,fact,one warehouse state event,,
+ai_gateway.usage,fact,one inference request,,AI Gateway request-level usage
+ai_gateway.external_model_spend,fact,one external model spend record,,
+serving.endpoint_usage,fact,one serving request token record,,
+mlflow.run_metrics_history,fact,one logged metric datapoint,,timeseries metric fact
+data_quality_monitoring.table_results,fact,one DQ monitoring result,,
+replication.states,fact,one replication heartbeat event,,
+sharing.materialization_history,fact,one materialization event,,
+storage.predictive_optimization_operations_history,fact,one predictive optimization operation,,
+lakeflow.zerobus_ingest,fact,one zerobus ingestion record,,Beta
+lakeflow.zerobus_stream,fact,one zerobus stream event,,Beta
+data_classification.results,fact,one column-level detection (snapshot),,"borderline: snapshot of current detections, no event_time"
+access.workspaces_latest,dimension,one row per workspace (snapshot),yes,"UNIVERSAL dim: nearly every fact has workspace_id"
+billing.list_prices,dimension,one price per SKU per validity window,,account-scoped; PIT on price window
+compute.clusters,dimension,SCD - cluster config versions,yes,PIT on change_time
+compute.warehouses,dimension,SCD - warehouse config versions,yes,PIT on change_time
+compute.instance_pools,dimension,SCD - instance pool config versions,,PIT on change_time
+compute.node_types,dimension,one row per node type (lookup),yes,"static lookup, keyed by node_type"
+lakeflow.jobs,dimension,SCD - job definition versions,yes,PIT on change_time; job_id unique within workspace
+lakeflow.job_tasks,dimension,SCD - job task definition versions,,PIT on change_time
+lakeflow.pipelines,dimension,SCD - pipeline definition versions,yes,PIT on change_time
+serving.served_entities,dimension,SCD - served entity config versions,,"PIT; latent 1:N per endpoint - prefer served_entity_id"
+mlflow.experiments_latest,dimension,one row per experiment (snapshot),,
+mlflow.runs_latest,dimension,one row per run (snapshot),,dim for run_metrics_history fact
