@@ -9,7 +9,7 @@
 --- audit
 version: 1.1
 source: system.access.audit
-comment: Databricks audit events with workspace context. Account-level events have null workspace_id.
+comment: Databricks audit events with workspace context. Account-level events have workspace_id 0.
 joins:
   - name: ws
     source: system.access.workspaces_latest
@@ -20,25 +20,53 @@ joins:
 dimensions:
   - name: Event Time
     expr: source.event_time
+    comment: Timestamp of the event.
   - name: Event Date
     expr: source.event_date
+    comment: Calendar date of the event.
+    format:
+      type: date
+      date_format: year_month_day
   - name: Workspace ID
     expr: source.workspace_id
+    comment: The Databricks workspace in which the audit event took place. Account-level events have workspace_id 0.
   - name: Workspace Name
     expr: ws.workspace_name
+    comment: The human-readable name of the workspace.
   - name: Service Name
     expr: source.service_name
+    comment: The name of the Databricks service that generated the audit event.
   - name: Action Name
     expr: source.action_name
+    comment: The name of the action performed as part of the audit event.
   - name: Audit Level
     expr: source.audit_level
+    comment: Whether the event is at the workspace or account level (ACCOUNT_LEVEL or WORKSPACE_LEVEL).
 measures:
   - name: Audit Events
     expr: COUNT(1)
+    comment: Number of audit events in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Sessions
     expr: COUNT(DISTINCT source.session_id)
+    comment: Distinct number of sessions in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Actions
     expr: COUNT(DISTINCT source.action_name)
+    comment: Distinct number of action types in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
 
 # ============================================================
 # assistant_events_metrics  (source: system.access.assistant_events)
@@ -57,21 +85,42 @@ joins:
 dimensions:
   - name: Event Time
     expr: source.event_time
+    comment: Time that the event happened. Recorded in UTC.
   - name: Event Date
     expr: source.event_date
+    comment: Calendar date of the event.
+    format:
+      type: date
+      date_format: year_month_day
   - name: Workspace ID
     expr: source.workspace_id
+    comment: ID of the workspace.
   - name: Workspace Name
     expr: ws.workspace_name
+    comment: The human-readable name of the workspace.
   - name: User Agent
     expr: source.user_agent
+    comment: Origination of request.
   - name: Initiated By
     expr: source.initiated_by
+    comment: Email of the user initiating the request.
 measures:
   - name: Assistant Events
     expr: COUNT(1)
+    comment: Number of assistant/Genie message events in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Users
     expr: COUNT(DISTINCT source.initiated_by)
+    comment: Distinct number of users initiating requests.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
 
 # ============================================================
 # inbound_network_metrics  (source: system.access.inbound_network)
@@ -90,23 +139,40 @@ joins:
 dimensions:
   - name: Event Time
     expr: source.event_time
+    comment: Timestamp when the event took place.
   - name: Event Date
     expr: CAST(source.event_time AS DATE)
+    comment: Calendar date of the event.
+    format:
+      type: date
+      date_format: year_month_day
   - name: Workspace ID
     expr: source.workspace_id
+    comment: The ID of the workspace where the event occurred.
   - name: Workspace Name
     expr: ws.workspace_name
+    comment: The human-readable name of the workspace.
   - name: Request Path
     expr: source.request_path
+    comment: The destination of the request.
   - name: Source IP
     expr: source.source.ip
+    comment: Source IP address of the inbound request.
   - name: Policy Outcome
     expr: source.policy_outcome
+    comment: Type of access event that occurred. DENIED or DRY_RUN_DENIAL.
   - name: Rule Label
     expr: source.rule_label
+    comment: The label of the ingress rule that denied the request.
 measures:
   - name: Inbound Denied Events
     expr: COUNT(1)
+    comment: Number of denied inbound access events in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
 
 # ============================================================
 # outbound_network_metrics  (source: system.access.outbound_network)
@@ -125,22 +191,45 @@ joins:
 dimensions:
   - name: Event Time
     expr: source.event_time
+    comment: Timestamp when the event took place.
   - name: Event Date
     expr: CAST(source.event_time AS DATE)
+    comment: Calendar date of the event.
+    format:
+      type: date
+      date_format: year_month_day
   - name: Workspace ID
     expr: source.workspace_id
+    comment: The ID of the workspace where the event occurred.
   - name: Workspace Name
     expr: ws.workspace_name
+    comment: The human-readable name of the workspace.
   - name: Destination Type
     expr: source.destination_type
+    comment: The type of destination. Possible values are DNS, IP, and STORAGE.
   - name: Destination
     expr: source.destination
+    comment: Details of the destination (domain name, IP address, or storage location).
   - name: Access Type
     expr: source.access_type
+    comment: Type of access event that occurred.
   - name: Network Source Type
     expr: source.network_source_type
+    comment: The source type of the network event, mainly for customer debugging.
 measures:
   - name: Outbound Denied Events
     expr: COUNT(1)
+    comment: Number of denied outbound access events in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Destinations
     expr: COUNT(DISTINCT source.destination)
+    comment: Distinct number of destinations in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0

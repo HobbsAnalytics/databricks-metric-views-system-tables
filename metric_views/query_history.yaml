@@ -2,8 +2,7 @@ version: 1.1
 
 # Fact: system.query.history (one statement execution; statement_id globally unique).
 # Inline SCD joins to warehouses and clusters via the compute struct, point-in-time
-# on start_time. A statement uses either a warehouse or a cluster, so the two
-# compute joins never both match. Validated N:1.
+# on start_time. A statement uses either a warehouse or a cluster. Validated N:1.
 source: system.query.history
 
 comment: SQL / serverless query executions with performance metrics and point-in-time warehouse/cluster context.
@@ -49,49 +48,128 @@ joins:
 dimensions:
   - name: Start Time
     expr: source.start_time
+    comment: The time when Databricks received the request. Recorded in UTC.
   - name: Start Date
     expr: CAST(source.start_time AS DATE)
+    comment: Calendar date the query was received.
+    format:
+      type: date
+      date_format: year_month_day
   - name: Start Month
     expr: DATE_TRUNC('MONTH', source.start_time)
+    comment: Month bucket of the query start for monthly trend analysis.
+    format:
+      type: date
+      date_format: locale_short_month
   - name: Workspace ID
     expr: source.workspace_id
+    comment: The ID of the workspace where the query was run.
   - name: Workspace Name
     expr: ws.workspace_name
+    comment: The human-readable name of the workspace.
   - name: Statement Type
     expr: source.statement_type
+    comment: 'The statement type. For example: ALTER, COPY, INSERT.'
   - name: Execution Status
     expr: source.execution_status
+    comment: 'The statement termination state. Possible values: FINISHED, FAILED, CANCELED.'
   - name: Executed By
     expr: source.executed_by
+    comment: The email address or username of the user who ran the statement.
   - name: Compute Type
     expr: source.compute.type
+    comment: The type of compute resource used to run the statement (WAREHOUSE or CLUSTER).
   - name: Warehouse Name
     expr: warehouse.warehouse_name
+    comment: The name of the SQL warehouse.
   - name: Warehouse Size
     expr: warehouse.warehouse_size
+    comment: The cluster size of the SQL warehouse (e.g. SMALL, MEDIUM, LARGE).
   - name: Cluster Name
     expr: cluster.cluster_name
+    comment: User defined name for the cluster (for queries run on all-purpose clusters).
   - name: Cluster Worker Cores
     expr: cluster.worker_core_count
+    comment: Number of vCPUs for the cluster worker node type (from node_types).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: From Result Cache
     expr: source.from_result_cache
+    comment: TRUE indicates that the statement result was fetched from the cache.
 
 measures:
   - name: Query Count
     expr: COUNT(1)
+    comment: Number of statement executions in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Statements
     expr: COUNT(DISTINCT source.statement_id)
+    comment: Distinct number of statement executions in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Failed Queries
     expr: COUNT(1) FILTER (WHERE source.execution_status = 'FAILED')
+    comment: Number of statements that failed.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Users
     expr: COUNT(DISTINCT source.executed_by_user_id)
+    comment: Distinct number of users who ran statements.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Avg Total Duration (ms)
     expr: AVG(source.total_duration_ms)
+    comment: Average total execution time in milliseconds (excluding result fetch).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 1
   - name: Total Duration (ms)
     expr: SUM(source.total_duration_ms)
+    comment: Total execution time in milliseconds across the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Avg Execution Duration (ms)
     expr: AVG(source.execution_duration_ms)
+    comment: Average time spent executing the statement in milliseconds.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 1
   - name: Total Read Bytes
     expr: SUM(source.read_bytes)
+    comment: Total bytes of files read after IO pruning.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Total Produced Rows
     expr: SUM(source.produced_rows)
+    comment: Total number of rows returned by statements in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
