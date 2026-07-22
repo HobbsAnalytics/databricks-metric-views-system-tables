@@ -2,8 +2,7 @@ version: 1.1
 
 # Fact: system.compute.instance_events (one instance state transition).
 # Inline SCD joins to instance_pools and clusters (point-in-time on event_time)
-# + node_types lookup. instance_pool_id / cluster_id populated for subsets;
-# joins are N:1 where the id is present. Validated N:1 (0 many-to-many).
+# + node_types lookup. Validated N:1 (0 many-to-many).
 source: system.compute.instance_events
 
 comment: Compute instance lifecycle events with point-in-time pool/cluster and node-type context.
@@ -60,39 +59,95 @@ joins:
 dimensions:
   - name: Event Time
     expr: source.event_time
+    comment: Timestamp of the event.
   - name: Event Date
     expr: CAST(source.event_time AS DATE)
+    comment: Calendar date of the event.
+    format:
+      type: date
+      date_format: year_month_day
   - name: Workspace ID
     expr: source.workspace_id
+    comment: ID of the workspace where this instance is launched.
   - name: Workspace Name
     expr: ws.workspace_name
+    comment: The human-readable name of the workspace.
   - name: Event Type
     expr: source.event_type
+    comment: 'Event type. Possible values: INSTANCE_LAUNCHING, STATE_TRANSITION.'
   - name: State
     expr: source.state
+    comment: 'Instance state. Possible values: INSTANCE_LAUNCHING, INSTANCE_READY, INSTANCE_PLACED, INSTANCE_TERMINATED.'
   - name: Availability Type
     expr: source.availability_type
+    comment: 'Availability type of the instance. Possible values: ON_DEMAND, SPOT.'
   - name: Node Type
     expr: source.node_type
+    comment: The name of the node type. Matches the cloud provider instance type.
   - name: Cluster Name
     expr: cluster.cluster_name
+    comment: User defined name for the cluster.
   - name: Cluster Worker Node Type
     expr: cluster.worker_node_type
+    comment: Worker node type name for the cluster.
   - name: Cluster Worker Cores
     expr: cluster.worker_core_count
+    comment: Number of vCPUs for the cluster worker node type (from node_types).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Instance Pool Name
     expr: pool.instance_pool_name
+    comment: User defined name of the instance pool.
   - name: Pool Node Cores
     expr: pool.pool_core_count
+    comment: Number of vCPUs for the instance pool node type (from node_types).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Pool Node Memory MB
     expr: pool.pool_memory_mb
+    comment: Total memory (MB) for the instance pool node type (from node_types).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
 
 measures:
   - name: Events
     expr: COUNT(1)
+    comment: Number of instance events in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Instances
     expr: COUNT(DISTINCT source.instance_id)
+    comment: Distinct number of instances in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Spot Events
     expr: COUNT(1) FILTER (WHERE source.availability_type = 'SPOT')
+    comment: Number of events for SPOT-availability instances.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: On-Demand Events
     expr: COUNT(1) FILTER (WHERE source.availability_type = 'ON_DEMAND')
+    comment: Number of events for ON_DEMAND-availability instances.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0

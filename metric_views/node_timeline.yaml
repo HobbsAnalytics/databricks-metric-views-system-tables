@@ -44,50 +44,135 @@ joins:
 dimensions:
   - name: Start Time
     expr: source.start_time
+    comment: Start time for the record in UTC.
   - name: Start Date
     expr: CAST(source.start_time AS DATE)
+    comment: Calendar date of the utilization record.
+    format:
+      type: date
+      date_format: year_month_day
   - name: Workspace ID
     expr: source.workspace_id
+    comment: ID of the workspace where this compute resource is running.
   - name: Workspace Name
     expr: ws.workspace_name
+    comment: The human-readable name of the workspace.
   - name: Cluster ID
     expr: source.cluster_id
+    comment: ID of the compute resource.
   - name: Cluster Name
     expr: cluster.cluster_name
+    comment: User defined name for the cluster.
   - name: Cluster Owner
     expr: cluster.owned_by
+    comment: Username of the cluster owner.
   - name: DBR Version
     expr: cluster.dbr_version
+    comment: The Databricks Runtime of the cluster.
   - name: Cluster Worker Node Type
     expr: cluster.worker_node_type
+    comment: Worker node type name for the cluster. Matches the cloud provider instance type.
   - name: Cluster Worker Cores
     expr: cluster.worker_core_count
+    comment: Number of vCPUs for the cluster worker node type (from node_types).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Cluster Worker Memory MB
     expr: cluster.worker_memory_mb
+    comment: Total memory (MB) for the cluster worker node type (from node_types).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Is Driver
     expr: source.driver
+    comment: Whether the instance is a driver or worker node.
   - name: Node Type
     expr: source.node_type
+    comment: The name of the node type. Matches the cloud provider instance type.
 
 measures:
   - name: Node Minutes
     expr: COUNT(1)
-    comment: Number of node-minute utilization records.
+    comment: Number of node-minute utilization records in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Instances
     expr: COUNT(DISTINCT source.instance_id)
+    comment: Distinct number of instances in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Clusters
     expr: COUNT(DISTINCT source.cluster_id)
+    comment: Distinct number of clusters in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Avg CPU User %
     expr: AVG(source.cpu_user_percent)
+    comment: Average percentage of time the CPU spent in userland.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 1
   - name: Avg CPU System %
     expr: AVG(source.cpu_system_percent)
+    comment: Average percentage of time the CPU spent in the kernel.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 1
   - name: Avg Memory Used %
     expr: AVG(source.mem_used_percent)
+    comment: Average percentage of compute memory used during the period.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 1
   - name: Total Network Sent Bytes
     expr: SUM(source.network_sent_bytes)
+    comment: Total bytes sent out in network traffic.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Total Network Received Bytes
     expr: SUM(source.network_received_bytes)
+    comment: Total bytes received from network traffic.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Total vCPU Cores
     expr: SUM(node.core_count)
+    comment: Sum of vCPU cores across node-minute records (from node_types).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Total Memory (MB)
     expr: SUM(node.memory_mb)
+    comment: Sum of memory (MB) across node-minute records (from node_types).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
