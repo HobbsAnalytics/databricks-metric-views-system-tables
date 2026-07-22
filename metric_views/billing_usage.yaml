@@ -1,0 +1,158 @@
+version: 1.1
+
+# Fact: system.billing.usage (one billable usage record).
+# Point-in-time SCD joins use the scd_* helper views in this schema (raw dim +
+# computed next_change_time). Product-scoped edges (cluster/job/pipeline) carry
+# the billing_origin_product predicate inside the join `on` clause so the FK only
+# attaches where it is valid. All joins validated N:1 (0 many-to-many).
+source: system.billing.usage
+
+comment: Databricks billable usage (cost/DBU) at usage-record grain, enriched with
+  point-in-time workspace, price, compute, job, pipeline and serving-endpoint context.
+
+joins:
+  # workspace: snapshot equi-join
+  - name: ws
+    source: system.access.workspaces_latest
+    "on": source.workspace_id = ws.workspace_id
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+  # list price: account-scoped, point-in-time on the SKU price window
+  - name: price
+    source: system.billing.list_prices
+    "on": price.sku_name = source.sku_name
+      AND source.usage_start_time >= price.price_start_time
+      AND (source.usage_start_time < price.price_end_time OR price.price_end_time IS NULL)
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+  # cluster: point-in-time + scoped to classic compute products
+  - name: cluster
+    source: mfg_mc_se_sa.sys_table_semantics.scd_clusters
+    "on": cluster.workspace_id = source.workspace_id
+      AND cluster.cluster_id = source.usage_metadata.cluster_id
+      AND source.billing_origin_product IN ('JOBS', 'ALL_PURPOSE', 'DLT')
+      AND source.usage_start_time >= cluster.change_time
+      AND (source.usage_start_time < cluster.next_change_time OR cluster.next_change_time IS NULL)
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+  # SQL warehouse: point-in-time
+  - name: warehouse
+    source: mfg_mc_se_sa.sys_table_semantics.scd_warehouses
+    "on": warehouse.workspace_id = source.workspace_id
+      AND warehouse.warehouse_id = source.usage_metadata.warehouse_id
+      AND source.usage_start_time >= warehouse.change_time
+      AND (source.usage_start_time < warehouse.next_change_time OR warehouse.next_change_time IS NULL)
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+  # instance pool: point-in-time
+  - name: pool
+    source: mfg_mc_se_sa.sys_table_semantics.scd_instance_pools
+    "on": pool.workspace_id = source.workspace_id
+      AND pool.instance_pool_id = source.usage_metadata.instance_pool_id
+      AND source.usage_start_time >= pool.change_time
+      AND (source.usage_start_time < pool.next_change_time OR pool.next_change_time IS NULL)
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+  # job: point-in-time + scoped to JOBS product
+  - name: job
+    source: mfg_mc_se_sa.sys_table_semantics.scd_jobs
+    "on": job.workspace_id = source.workspace_id
+      AND job.job_id = source.usage_metadata.job_id
+      AND source.billing_origin_product = 'JOBS'
+      AND source.usage_start_time >= job.change_time
+      AND (source.usage_start_time < job.next_change_time OR job.next_change_time IS NULL)
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+  # pipeline: point-in-time + scoped to DLT product
+  - name: pipeline
+    source: mfg_mc_se_sa.sys_table_semantics.scd_pipelines
+    "on": pipeline.workspace_id = source.workspace_id
+      AND pipeline.pipeline_id = source.usage_metadata.dlt_pipeline_id
+      AND source.billing_origin_product = 'DLT'
+      AND source.usage_start_time >= pipeline.change_time
+      AND (source.usage_start_time < pipeline.next_change_time OR pipeline.next_change_time IS NULL)
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+  # serving endpoint / entity: point-in-time
+  - name: served
+    source: mfg_mc_se_sa.sys_table_semantics.scd_served_entities
+    "on": served.workspace_id = source.workspace_id
+      AND served.served_entity_id = source.usage_metadata.endpoint_id
+      AND source.usage_start_time >= served.change_time
+      AND (source.usage_start_time < served.next_change_time OR served.next_change_time IS NULL)
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+dimensions:
+  - name: Usage Date
+    expr: source.usage_date
+    comment: Calendar date of the usage record.
+  - name: Usage Month
+    expr: DATE_TRUNC('MONTH', source.usage_date)
+    comment: Month bucket of the usage record.
+  - name: Workspace ID
+    expr: source.workspace_id
+  - name: Workspace Name
+    expr: ws.workspace_name
+  - name: Account ID
+    expr: source.account_id
+  - name: SKU
+    expr: source.sku_name
+  - name: Cloud
+    expr: source.cloud
+  - name: Billing Origin Product
+    expr: source.billing_origin_product
+    comment: Product that originated the usage (JOBS, ALL_PURPOSE, DLT, MODEL_SERVING, ...).
+  - name: Usage Unit
+    expr: source.usage_unit
+    comment: Unit the usage is measured in (e.g. DBU).
+  - name: Cluster Name
+    expr: cluster.cluster_name
+  - name: Cluster Owner
+    expr: cluster.owned_by
+  - name: DBR Version
+    expr: cluster.dbr_version
+  - name: Warehouse Name
+    expr: warehouse.warehouse_name
+  - name: Warehouse Size
+    expr: warehouse.warehouse_size
+  - name: Instance Pool Name
+    expr: pool.instance_pool_name
+  - name: Job Name
+    expr: job.job_name
+  - name: Pipeline Name
+    expr: pipeline.pipeline_name
+  - name: Serving Endpoint
+    expr: served.endpoint_name
+  - name: Served Entity
+    expr: served.served_entity_name
+
+measures:
+  - name: Usage Records
+    expr: COUNT(1)
+    comment: Number of usage records in the slice.
+  - name: Usage Quantity
+    expr: SUM(source.usage_quantity)
+    comment: Total units consumed (e.g. DBUs).
+  - name: List Cost (USD)
+    expr: SUM(source.usage_quantity * COALESCE(price.pricing.effective_list.default, price.pricing.default))
+    comment: Estimated list-price cost = usage_quantity x effective list price.
+  - name: Distinct Workspaces
+    expr: COUNT(DISTINCT source.workspace_id)
+  - name: Distinct SKUs
+    expr: COUNT(DISTINCT source.sku_name)
