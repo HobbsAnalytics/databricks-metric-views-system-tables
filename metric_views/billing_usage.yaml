@@ -1,10 +1,12 @@
 version: 1.1
 
 # Fact: system.billing.usage (one billable usage record).
-# Point-in-time SCD joins use the scd_* helper views in this schema (raw dim +
-# computed next_change_time). Product-scoped edges (cluster/job/pipeline) carry
-# the billing_origin_product predicate inside the join `on` clause so the FK only
-# attaches where it is valid. All joins validated N:1 (0 many-to-many).
+# SCD dimensions are defined INLINE as join sources (raw dim + computed
+# next_change_time via lead()), so no helper views are needed -- the metric
+# view is fully self-contained. Point-in-time range predicates live in each
+# join `on`. Product-scoped edges (cluster/job/pipeline) carry the
+# billing_origin_product predicate inside `on` so the FK only attaches where
+# valid. All joins validated N:1 (0 many-to-many).
 source: system.billing.usage
 
 comment: Databricks billable usage (cost/DBU) at usage-record grain, enriched with
@@ -29,9 +31,13 @@ joins:
     rely:
       at_most_one_match: true
 
-  # cluster: point-in-time + scoped to classic compute products
+  # cluster: inline SCD, point-in-time + scoped to classic compute products
   - name: cluster
-    source: mfg_mc_se_sa.sys_table_semantics.scd_clusters
+    source: |
+      SELECT workspace_id, cluster_id, cluster_name, owned_by, dbr_version,
+             data_security_mode, change_time,
+             lead(change_time) OVER (PARTITION BY workspace_id, cluster_id ORDER BY change_time) AS next_change_time
+      FROM system.compute.clusters
     "on": cluster.workspace_id = source.workspace_id
       AND cluster.cluster_id = source.usage_metadata.cluster_id
       AND source.billing_origin_product IN ('JOBS', 'ALL_PURPOSE', 'DLT')
@@ -41,9 +47,12 @@ joins:
     rely:
       at_most_one_match: true
 
-  # SQL warehouse: point-in-time
+  # SQL warehouse: inline SCD, point-in-time
   - name: warehouse
-    source: mfg_mc_se_sa.sys_table_semantics.scd_warehouses
+    source: |
+      SELECT workspace_id, warehouse_id, warehouse_name, warehouse_type, warehouse_size, change_time,
+             lead(change_time) OVER (PARTITION BY workspace_id, warehouse_id ORDER BY change_time) AS next_change_time
+      FROM system.compute.warehouses
     "on": warehouse.workspace_id = source.workspace_id
       AND warehouse.warehouse_id = source.usage_metadata.warehouse_id
       AND source.usage_start_time >= warehouse.change_time
@@ -52,9 +61,12 @@ joins:
     rely:
       at_most_one_match: true
 
-  # instance pool: point-in-time
+  # instance pool: inline SCD, point-in-time
   - name: pool
-    source: mfg_mc_se_sa.sys_table_semantics.scd_instance_pools
+    source: |
+      SELECT workspace_id, instance_pool_id, instance_pool_name, node_type, change_time,
+             lead(change_time) OVER (PARTITION BY workspace_id, instance_pool_id ORDER BY change_time) AS next_change_time
+      FROM system.compute.instance_pools
     "on": pool.workspace_id = source.workspace_id
       AND pool.instance_pool_id = source.usage_metadata.instance_pool_id
       AND source.usage_start_time >= pool.change_time
@@ -63,9 +75,12 @@ joins:
     rely:
       at_most_one_match: true
 
-  # job: point-in-time + scoped to JOBS product
+  # job: inline SCD, point-in-time + scoped to JOBS product
   - name: job
-    source: mfg_mc_se_sa.sys_table_semantics.scd_jobs
+    source: |
+      SELECT workspace_id, job_id, name AS job_name, creator_id, run_as, change_time,
+             lead(change_time) OVER (PARTITION BY workspace_id, job_id ORDER BY change_time) AS next_change_time
+      FROM system.lakeflow.jobs
     "on": job.workspace_id = source.workspace_id
       AND job.job_id = source.usage_metadata.job_id
       AND source.billing_origin_product = 'JOBS'
@@ -75,9 +90,12 @@ joins:
     rely:
       at_most_one_match: true
 
-  # pipeline: point-in-time + scoped to DLT product
+  # pipeline: inline SCD, point-in-time + scoped to DLT product
   - name: pipeline
-    source: mfg_mc_se_sa.sys_table_semantics.scd_pipelines
+    source: |
+      SELECT workspace_id, pipeline_id, name AS pipeline_name, pipeline_type, created_by, run_as, change_time,
+             lead(change_time) OVER (PARTITION BY workspace_id, pipeline_id ORDER BY change_time) AS next_change_time
+      FROM system.lakeflow.pipelines
     "on": pipeline.workspace_id = source.workspace_id
       AND pipeline.pipeline_id = source.usage_metadata.dlt_pipeline_id
       AND source.billing_origin_product = 'DLT'
@@ -87,9 +105,13 @@ joins:
     rely:
       at_most_one_match: true
 
-  # serving endpoint / entity: point-in-time
+  # serving endpoint / entity: inline SCD, point-in-time
   - name: served
-    source: mfg_mc_se_sa.sys_table_semantics.scd_served_entities
+    source: |
+      SELECT workspace_id, served_entity_id, endpoint_name, served_entity_name, entity_type,
+             entity_name, entity_version, change_time,
+             lead(change_time) OVER (PARTITION BY workspace_id, served_entity_id ORDER BY change_time) AS next_change_time
+      FROM system.serving.served_entities
     "on": served.workspace_id = source.workspace_id
       AND served.served_entity_id = source.usage_metadata.endpoint_id
       AND source.usage_start_time >= served.change_time
