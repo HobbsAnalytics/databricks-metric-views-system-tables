@@ -45,39 +45,98 @@ joins:
 dimensions:
   - name: Period Start
     expr: source.period_start_time
+    comment: The start time for the task or for the time period. Recorded in UTC.
   - name: Period Date
     expr: CAST(source.period_start_time AS DATE)
+    comment: Calendar date of the task run period.
+    format:
+      type: date
+      date_format: year_month_day
   - name: Period Month
     expr: DATE_TRUNC('MONTH', source.period_start_time)
+    comment: Month bucket of the task run period for monthly trend analysis.
+    format:
+      type: date
+      date_format: locale_short_month
   - name: Workspace ID
     expr: source.workspace_id
+    comment: The ID of the workspace this job belongs to.
   - name: Workspace Name
     expr: ws.workspace_name
+    comment: The human-readable name of the workspace.
   - name: Job ID
     expr: source.job_id
+    comment: The ID of the job. Only unique within a single workspace.
   - name: Job Name
     expr: job.job_name
+    comment: The user-supplied name of the job.
   - name: Task Key
     expr: source.task_key
+    comment: The reference key for a task in a job. This key is only unique within a single job.
   - name: Result State
     expr: source.result_state
+    comment: The outcome of the job task run.
   - name: Termination Code
     expr: source.termination_code
+    comment: The termination code of the task run. Not populated for rows emitted before late August 2024.
   - name: Termination Type
     expr: source.termination_type
+    comment: The type of termination for the job task run. Not populated for rows emitted before late November 2025.
 
 measures:
   - name: Task Run Periods
     expr: COUNT(1)
+    comment: Number of task-run time-period rows in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Task Runs
     expr: COUNT(DISTINCT source.run_id)
+    comment: Distinct number of task runs in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Jobs
     expr: COUNT(DISTINCT source.job_id)
+    comment: Distinct number of jobs in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Success Task Runs
     expr: COUNT(DISTINCT source.run_id) FILTER (WHERE source.result_state = 'SUCCEEDED')
+    comment: Distinct task runs that completed successfully.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Failed Task Runs
     expr: COUNT(DISTINCT source.run_id) FILTER (WHERE source.result_state = 'FAILED')
+    comment: Distinct task runs that failed.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Avg Execution Duration (s)
     expr: AVG(source.execution_duration_seconds)
+    comment: Average execution-phase duration in seconds. Not populated for rows before late November 2025.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 1
   - name: Total Execution Duration (s)
     expr: SUM(source.execution_duration_seconds)
+    comment: Total execution-phase duration in seconds across the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
