@@ -133,68 +133,147 @@ joins:
 dimensions:
   - name: Usage Date
     expr: source.usage_date
-    comment: Calendar date of the usage record.
+    comment: Date of the usage record, this field can be used for faster aggregation by date.
+    format:
+      type: date
+      date_format: year_month_day
   - name: Usage Month
     expr: DATE_TRUNC('MONTH', source.usage_date)
-    comment: Month bucket of the usage record.
+    comment: Month bucket derived from the usage date for monthly trend analysis.
+    format:
+      type: date
+      date_format: locale_short_month
   - name: Workspace ID
     expr: source.workspace_id
+    comment: ID of the Workspace this usage was associated with.
   - name: Workspace Name
     expr: ws.workspace_name
+    comment: The human-readable name of the workspace.
   - name: Account ID
     expr: source.account_id
+    comment: ID of the account this report was generated for.
   - name: SKU
     expr: source.sku_name
+    comment: Name of the SKU.
   - name: Cloud
     expr: source.cloud
+    comment: Cloud this usage is relevant for. Possible values are AWS, AZURE, and GCP.
   - name: Billing Origin Product
     expr: source.billing_origin_product
-    comment: Product that originated the usage (JOBS, ALL_PURPOSE, DLT, MODEL_SERVING, ...).
+    comment: The product that originated the usage. Some products can be billed as different SKUs.
   - name: Usage Unit
     expr: source.usage_unit
-    comment: Unit the usage is measured in (e.g. DBU).
+    comment: Unit this usage is measured in. Possible values include DBUs.
   - name: Cluster Name
     expr: cluster.cluster_name
+    comment: User defined name for the cluster.
   - name: Cluster Owner
     expr: cluster.owned_by
+    comment: Username of the cluster owner. Defaults to the cluster creator.
   - name: DBR Version
     expr: cluster.dbr_version
+    comment: The Databricks Runtime of the cluster.
   - name: Cluster Worker Cores
     expr: cluster.worker_core_count
+    comment: Number of vCPUs for the cluster worker node type (from node_types).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Cluster Worker Memory MB
     expr: cluster.worker_memory_mb
+    comment: Total memory (MB) for the cluster worker node type (from node_types).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Cluster Worker GPUs
     expr: cluster.worker_gpu_count
+    comment: Number of GPUs for the cluster worker node type (from node_types).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Cluster Driver Cores
     expr: cluster.driver_core_count
+    comment: Number of vCPUs for the cluster driver node type (from node_types).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Warehouse Name
     expr: warehouse.warehouse_name
+    comment: The name of the SQL warehouse.
   - name: Warehouse Size
     expr: warehouse.warehouse_size
+    comment: The cluster size of the SQL warehouse (e.g. SMALL, MEDIUM, LARGE).
   - name: Instance Pool Name
     expr: pool.instance_pool_name
+    comment: User defined name of the instance pool.
   - name: Pool Node Cores
     expr: pool.pool_core_count
+    comment: Number of vCPUs for the instance pool node type (from node_types).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Job Name
     expr: job.job_name
+    comment: The user-supplied name of the job.
   - name: Pipeline Name
     expr: pipeline.pipeline_name
+    comment: The user-supplied name of the pipeline.
   - name: Serving Endpoint
     expr: served.endpoint_name
+    comment: The name of the serving endpoint.
   - name: Served Entity
     expr: served.served_entity_name
+    comment: The name of the served entity.
 
 measures:
   - name: Usage Records
     expr: COUNT(1)
-    comment: Number of usage records in the slice.
+    comment: Number of usage records in the selected slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Usage Quantity
     expr: SUM(source.usage_quantity)
-    comment: Total units consumed (e.g. DBUs).
+    comment: Total number of units consumed (e.g. DBUs).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 2
   - name: List Cost (USD)
     expr: SUM(source.usage_quantity * COALESCE(price.pricing.effective_list.default, price.pricing.default))
     comment: Estimated list-price cost = usage_quantity x effective list price.
+    format:
+      type: currency
+      currency_code: USD
+      decimal_places:
+        type: exact
+        places: 2
   - name: Distinct Workspaces
     expr: COUNT(DISTINCT source.workspace_id)
+    comment: Distinct number of workspaces with activity in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct SKUs
     expr: COUNT(DISTINCT source.sku_name)
+    comment: Distinct number of SKUs in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
