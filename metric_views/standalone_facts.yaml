@@ -1,0 +1,141 @@
+# Standalone facts: no workspace_id / no joinable system dimension, so these are
+# single-table metric views (source + dimensions + measures, no joins).
+# Deployed as: dq_monitoring_metrics, replication_states_metrics,
+# clean_room_events_metrics, data_classification_metrics.
+#
+# DEPLOY STATUS:
+#   replication_states_metrics    - DEPLOYED + validated
+#   clean_room_events_metrics     - DEPLOYED
+#   dq_monitoring_metrics         - BLOCKED: no SELECT on
+#     system.data_quality_monitoring.table_results (needs account-admin grant)
+#   data_classification_metrics   - BLOCKED: no SELECT on
+#     system.data_classification.results (needs account-admin grant)
+#   Both YAMLs are ready; deploy once SELECT is granted.
+
+# ============================================================
+# dq_monitoring_metrics  (system.data_quality_monitoring.table_results)
+# ============================================================
+--- dq_monitoring
+version: 1.1
+source: system.data_quality_monitoring.table_results
+comment: Data quality monitoring results at table grain (standalone fact).
+dimensions:
+  - name: Event Time
+    expr: source.event_time
+  - name: Event Date
+    expr: CAST(source.event_time AS DATE)
+  - name: Catalog Name
+    expr: source.catalog_name
+  - name: Schema Name
+    expr: source.schema_name
+  - name: Table Name
+    expr: source.table_name
+  - name: Status
+    expr: source.status
+  - name: Freshness Status
+    expr: source.freshness.status
+  - name: Completeness Status
+    expr: source.completeness.status
+measures:
+  - name: Results
+    expr: COUNT(1)
+  - name: Distinct Tables
+    expr: COUNT(DISTINCT source.table_id)
+  - name: Unhealthy Results
+    expr: COUNT(1) FILTER (WHERE source.status <> 'HEALTHY')
+  - name: Total Downstream Tables
+    expr: SUM(source.downstream_impact.num_downstream_tables)
+
+# ============================================================
+# replication_states_metrics  (system.replication.states)
+# ============================================================
+--- replication_states
+version: 1.1
+source: system.replication.states
+comment: Replication heartbeat states (account-level standalone fact, Private Preview).
+dimensions:
+  - name: Event Time
+    expr: source.event_time
+  - name: Event Date
+    expr: CAST(source.event_time AS DATE)
+  - name: Account ID
+    expr: source.account_id
+  - name: Failover Group
+    expr: source.failover_group_name
+  - name: Replication State
+    expr: source.replication_state
+  - name: Effective Primary Region
+    expr: source.effective_primary_region
+measures:
+  - name: Heartbeat Events
+    expr: COUNT(1)
+  - name: Distinct Failover Groups
+    expr: COUNT(DISTINCT source.failover_group_name)
+  - name: Avg Replication Lag (ms)
+    expr: AVG(source.replication_lag_ms)
+  - name: Max Replication Lag (ms)
+    expr: MAX(source.replication_lag_ms)
+
+# ============================================================
+# clean_room_events_metrics  (system.access.clean_room_events)
+# ============================================================
+--- clean_room_events
+version: 1.1
+source: system.access.clean_room_events
+comment: Clean room events (metastore/account scoped standalone fact).
+dimensions:
+  - name: Event Time
+    expr: source.event_time
+  - name: Event Date
+    expr: CAST(source.event_time AS DATE)
+  - name: Metastore ID
+    expr: source.metastore_id
+  - name: Clean Room Name
+    expr: source.clean_room_name
+  - name: Central Clean Room ID
+    expr: source.central_clean_room_id
+  - name: Event Type
+    expr: source.event_type
+  - name: Initiator Alias
+    expr: source.initiator_collaborator_alias
+measures:
+  - name: Clean Room Events
+    expr: COUNT(1)
+  - name: Distinct Clean Rooms
+    expr: COUNT(DISTINCT source.central_clean_room_id)
+
+# ============================================================
+# data_classification_metrics  (system.data_classification.results)
+# ============================================================
+--- data_classification
+version: 1.1
+source: system.data_classification.results
+comment: Data classification detections (current-state snapshot standalone fact).
+dimensions:
+  - name: Latest Detected Time
+    expr: source.latest_detected_time
+  - name: Latest Detected Date
+    expr: CAST(source.latest_detected_time AS DATE)
+  - name: Catalog Name
+    expr: source.catalog_name
+  - name: Schema Name
+    expr: source.schema_name
+  - name: Table Name
+    expr: source.table_name
+  - name: Column Name
+    expr: source.column_name
+  - name: Data Type
+    expr: source.data_type
+  - name: Class Tag
+    expr: source.class_tag
+  - name: Confidence
+    expr: source.confidence
+  - name: Exclusion State
+    expr: source.exclusion_state
+measures:
+  - name: Detections
+    expr: COUNT(1)
+  - name: Distinct Tables
+    expr: COUNT(DISTINCT source.table_id)
+  - name: Distinct Class Tags
+    expr: COUNT(DISTINCT source.class_tag)

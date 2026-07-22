@@ -1,0 +1,167 @@
+# Misc workspace-scoped facts. Each is a separate metric view sharing a workspace
+# join. Deployed as: materialization_history_metrics, predictive_optimization_metrics,
+# zerobus_ingest_metrics, zerobus_stream_metrics.
+
+# ============================================================
+# materialization_history_metrics
+# ============================================================
+--- materialization_history
+version: 1.1
+source: system.sharing.materialization_history
+comment: Delta Sharing materialization events with workspace context.
+joins:
+  - name: ws
+    source: system.access.workspaces_latest
+    "on": source.workspace_id = ws.workspace_id
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+dimensions:
+  - name: Created At
+    expr: source.created_at
+  - name: Created Date
+    expr: CAST(source.created_at AS DATE)
+  - name: Workspace ID
+    expr: source.workspace_id
+  - name: Workspace Name
+    expr: ws.workspace_name
+  - name: Recipient Name
+    expr: source.recipient_name
+  - name: Provider Name
+    expr: source.provider_name
+  - name: Share Name
+    expr: source.share_name
+  - name: Schema Name
+    expr: source.schema_name
+  - name: Table Name
+    expr: source.table_name
+measures:
+  - name: Materialization Events
+    expr: COUNT(1)
+  - name: Distinct Recipients
+    expr: COUNT(DISTINCT source.recipient_name)
+  - name: Distinct Shares
+    expr: COUNT(DISTINCT source.share_name)
+
+# ============================================================
+# predictive_optimization_metrics
+# ============================================================
+--- predictive_optimization
+version: 1.1
+source: system.storage.predictive_optimization_operations_history
+comment: Predictive optimization operations with workspace context.
+joins:
+  - name: ws
+    source: system.access.workspaces_latest
+    "on": source.workspace_id = ws.workspace_id
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+dimensions:
+  - name: Start Time
+    expr: source.start_time
+  - name: Start Date
+    expr: CAST(source.start_time AS DATE)
+  - name: Workspace ID
+    expr: source.workspace_id
+  - name: Workspace Name
+    expr: ws.workspace_name
+  - name: Operation Type
+    expr: source.operation_type
+  - name: Operation Status
+    expr: source.operation_status
+  - name: Metastore Name
+    expr: source.metastore_name
+  - name: Catalog Name
+    expr: source.catalog_name
+  - name: Schema Name
+    expr: source.schema_name
+  - name: Table Name
+    expr: source.table_name
+measures:
+  - name: Operations
+    expr: COUNT(1)
+  - name: Successful Operations
+    expr: COUNT(1) FILTER (WHERE source.operation_status = 'SUCCESSFUL')
+  - name: Total Usage Quantity
+    expr: SUM(source.usage_quantity)
+  - name: Distinct Tables
+    expr: COUNT(DISTINCT source.table_id)
+
+# ============================================================
+# zerobus_ingest_metrics
+# ============================================================
+--- zerobus_ingest
+version: 1.1
+source: system.lakeflow.zerobus_ingest
+comment: Zerobus ingestion commit records with workspace context (Beta).
+joins:
+  - name: ws
+    source: system.access.workspaces_latest
+    "on": source.workspace_id = ws.workspace_id
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+dimensions:
+  - name: Commit Time
+    expr: source.commit_time
+  - name: Commit Date
+    expr: CAST(source.commit_time AS DATE)
+  - name: Workspace ID
+    expr: source.workspace_id
+  - name: Workspace Name
+    expr: ws.workspace_name
+  - name: Stream ID
+    expr: source.stream_id
+  - name: Table Name
+    expr: source.table_name
+measures:
+  - name: Commits
+    expr: COUNT(1)
+  - name: Total Committed Bytes
+    expr: SUM(source.committed_bytes)
+  - name: Total Committed Records
+    expr: SUM(source.committed_records)
+  - name: Distinct Streams
+    expr: COUNT(DISTINCT source.stream_id)
+
+# ============================================================
+# zerobus_stream_metrics
+# ============================================================
+--- zerobus_stream
+version: 1.1
+source: system.lakeflow.zerobus_stream
+comment: Zerobus stream events with workspace context (Beta).
+joins:
+  - name: ws
+    source: system.access.workspaces_latest
+    "on": source.workspace_id = ws.workspace_id
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+dimensions:
+  - name: Event Time
+    expr: source.event_time
+  - name: Event Date
+    expr: CAST(source.event_time AS DATE)
+  - name: Workspace ID
+    expr: source.workspace_id
+  - name: Workspace Name
+    expr: ws.workspace_name
+  - name: Stream ID
+    expr: source.stream_id
+  - name: Producer ID
+    expr: source.producer_id
+  - name: Table Name
+    expr: source.table_name
+  - name: Protocol
+    expr: source.protocol
+  - name: Data Format
+    expr: source.data_format
+measures:
+  - name: Stream Events
+    expr: COUNT(1)
+  - name: Distinct Streams
+    expr: COUNT(DISTINCT source.stream_id)
+  - name: Distinct Producers
+    expr: COUNT(DISTINCT source.producer_id)
