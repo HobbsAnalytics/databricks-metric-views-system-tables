@@ -31,13 +31,20 @@ joins:
     rely:
       at_most_one_match: true
 
-  # cluster: inline SCD, point-in-time + scoped to classic compute products
+  # cluster: inline SCD, point-in-time + scoped to classic compute products.
+  # FLAKE: node_types pre-joined inside the source (worker + driver hardware) so
+  # the 2nd-level attributes ride along as parent-dim columns. See FLAKE_JOINS.md.
   - name: cluster
     source: |
-      SELECT workspace_id, cluster_id, cluster_name, owned_by, dbr_version,
-             data_security_mode, change_time,
-             lead(change_time) OVER (PARTITION BY workspace_id, cluster_id ORDER BY change_time) AS next_change_time
-      FROM system.compute.clusters
+      SELECT c.workspace_id, c.cluster_id, c.cluster_name, c.owned_by, c.dbr_version,
+             c.data_security_mode,
+             wn.core_count AS worker_core_count, wn.memory_mb AS worker_memory_mb, wn.gpu_count AS worker_gpu_count,
+             dn.core_count AS driver_core_count, dn.memory_mb AS driver_memory_mb,
+             c.change_time,
+             lead(c.change_time) OVER (PARTITION BY c.workspace_id, c.cluster_id ORDER BY c.change_time) AS next_change_time
+      FROM system.compute.clusters c
+      LEFT JOIN system.compute.node_types wn ON wn.account_id = c.account_id AND wn.node_type = c.worker_node_type
+      LEFT JOIN system.compute.node_types dn ON dn.account_id = c.account_id AND dn.node_type = c.driver_node_type
     "on": cluster.workspace_id = source.workspace_id
       AND cluster.cluster_id = source.usage_metadata.cluster_id
       AND source.billing_origin_product IN ('JOBS', 'ALL_PURPOSE', 'DLT')
@@ -61,12 +68,15 @@ joins:
     rely:
       at_most_one_match: true
 
-  # instance pool: inline SCD, point-in-time
+  # instance pool: inline SCD, point-in-time. FLAKE: node_types pre-joined for pool hardware.
   - name: pool
     source: |
-      SELECT workspace_id, instance_pool_id, instance_pool_name, node_type, change_time,
-             lead(change_time) OVER (PARTITION BY workspace_id, instance_pool_id ORDER BY change_time) AS next_change_time
-      FROM system.compute.instance_pools
+      SELECT p.workspace_id, p.instance_pool_id, p.instance_pool_name, p.node_type,
+             pn.core_count AS pool_core_count, pn.memory_mb AS pool_memory_mb,
+             p.change_time,
+             lead(p.change_time) OVER (PARTITION BY p.workspace_id, p.instance_pool_id ORDER BY p.change_time) AS next_change_time
+      FROM system.compute.instance_pools p
+      LEFT JOIN system.compute.node_types pn ON pn.account_id = p.account_id AND pn.node_type = p.node_type
     "on": pool.workspace_id = source.workspace_id
       AND pool.instance_pool_id = source.usage_metadata.instance_pool_id
       AND source.usage_start_time >= pool.change_time
@@ -149,12 +159,22 @@ dimensions:
     expr: cluster.owned_by
   - name: DBR Version
     expr: cluster.dbr_version
+  - name: Cluster Worker Cores
+    expr: cluster.worker_core_count
+  - name: Cluster Worker Memory MB
+    expr: cluster.worker_memory_mb
+  - name: Cluster Worker GPUs
+    expr: cluster.worker_gpu_count
+  - name: Cluster Driver Cores
+    expr: cluster.driver_core_count
   - name: Warehouse Name
     expr: warehouse.warehouse_name
   - name: Warehouse Size
     expr: warehouse.warehouse_size
   - name: Instance Pool Name
     expr: pool.instance_pool_name
+  - name: Pool Node Cores
+    expr: pool.pool_core_count
   - name: Job Name
     expr: job.job_name
   - name: Pipeline Name
