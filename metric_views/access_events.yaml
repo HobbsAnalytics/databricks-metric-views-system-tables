@@ -1,0 +1,146 @@
+# Thin access event facts. Each is a separate metric view sharing a single
+# workspace snapshot join. Deployed as: audit_metrics, assistant_events_metrics,
+# inbound_network_metrics, outbound_network_metrics. Documented here together;
+# each block below is its own CREATE ... WITH METRICS payload.
+
+# ============================================================
+# audit_metrics  (source: system.access.audit)
+# ============================================================
+--- audit
+version: 1.1
+source: system.access.audit
+comment: Databricks audit events with workspace context. Account-level events have null workspace_id.
+joins:
+  - name: ws
+    source: system.access.workspaces_latest
+    "on": source.workspace_id = ws.workspace_id
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+dimensions:
+  - name: Event Time
+    expr: source.event_time
+  - name: Event Date
+    expr: source.event_date
+  - name: Workspace ID
+    expr: source.workspace_id
+  - name: Workspace Name
+    expr: ws.workspace_name
+  - name: Service Name
+    expr: source.service_name
+  - name: Action Name
+    expr: source.action_name
+  - name: Audit Level
+    expr: source.audit_level
+measures:
+  - name: Audit Events
+    expr: COUNT(1)
+  - name: Distinct Sessions
+    expr: COUNT(DISTINCT source.session_id)
+  - name: Distinct Actions
+    expr: COUNT(DISTINCT source.action_name)
+
+# ============================================================
+# assistant_events_metrics  (source: system.access.assistant_events)
+# ============================================================
+--- assistant_events
+version: 1.1
+source: system.access.assistant_events
+comment: Genie/assistant message events with workspace context.
+joins:
+  - name: ws
+    source: system.access.workspaces_latest
+    "on": source.workspace_id = ws.workspace_id
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+dimensions:
+  - name: Event Time
+    expr: source.event_time
+  - name: Event Date
+    expr: source.event_date
+  - name: Workspace ID
+    expr: source.workspace_id
+  - name: Workspace Name
+    expr: ws.workspace_name
+  - name: User Agent
+    expr: source.user_agent
+  - name: Initiated By
+    expr: source.initiated_by
+measures:
+  - name: Assistant Events
+    expr: COUNT(1)
+  - name: Distinct Users
+    expr: COUNT(DISTINCT source.initiated_by)
+
+# ============================================================
+# inbound_network_metrics  (source: system.access.inbound_network)
+# ============================================================
+--- inbound_network
+version: 1.1
+source: system.access.inbound_network
+comment: Denied inbound network access events with workspace context.
+joins:
+  - name: ws
+    source: system.access.workspaces_latest
+    "on": source.workspace_id = ws.workspace_id
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+dimensions:
+  - name: Event Time
+    expr: source.event_time
+  - name: Event Date
+    expr: CAST(source.event_time AS DATE)
+  - name: Workspace ID
+    expr: source.workspace_id
+  - name: Workspace Name
+    expr: ws.workspace_name
+  - name: Request Path
+    expr: source.request_path
+  - name: Source IP
+    expr: source.source.ip
+  - name: Policy Outcome
+    expr: source.policy_outcome
+  - name: Rule Label
+    expr: source.rule_label
+measures:
+  - name: Inbound Denied Events
+    expr: COUNT(1)
+
+# ============================================================
+# outbound_network_metrics  (source: system.access.outbound_network)
+# ============================================================
+--- outbound_network
+version: 1.1
+source: system.access.outbound_network
+comment: Denied outbound network access events with workspace context.
+joins:
+  - name: ws
+    source: system.access.workspaces_latest
+    "on": source.workspace_id = ws.workspace_id
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+dimensions:
+  - name: Event Time
+    expr: source.event_time
+  - name: Event Date
+    expr: CAST(source.event_time AS DATE)
+  - name: Workspace ID
+    expr: source.workspace_id
+  - name: Workspace Name
+    expr: ws.workspace_name
+  - name: Destination Type
+    expr: source.destination_type
+  - name: Destination
+    expr: source.destination
+  - name: Access Type
+    expr: source.access_type
+  - name: Network Source Type
+    expr: source.network_source_type
+measures:
+  - name: Outbound Denied Events
+    expr: COUNT(1)
+  - name: Distinct Destinations
+    expr: COUNT(DISTINCT source.destination)

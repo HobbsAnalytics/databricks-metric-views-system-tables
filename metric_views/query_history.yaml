@@ -1,0 +1,91 @@
+version: 1.1
+
+# Fact: system.query.history (one statement execution; statement_id globally unique).
+# Inline SCD joins to warehouses and clusters via the compute struct, point-in-time
+# on start_time. A statement uses either a warehouse or a cluster, so the two
+# compute joins never both match. Validated N:1.
+source: system.query.history
+
+comment: SQL / serverless query executions with performance metrics and point-in-time warehouse/cluster context.
+
+joins:
+  - name: ws
+    source: system.access.workspaces_latest
+    "on": source.workspace_id = ws.workspace_id
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+  - name: warehouse
+    source: |
+      SELECT workspace_id, warehouse_id, warehouse_name, warehouse_type, warehouse_size, change_time,
+             lead(change_time) OVER (PARTITION BY workspace_id, warehouse_id ORDER BY change_time) AS next_change_time
+      FROM system.compute.warehouses
+    "on": warehouse.workspace_id = source.workspace_id
+      AND warehouse.warehouse_id = source.compute.warehouse_id
+      AND source.start_time >= warehouse.change_time
+      AND (source.start_time < warehouse.next_change_time OR warehouse.next_change_time IS NULL)
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+  - name: cluster
+    source: |
+      SELECT workspace_id, cluster_id, cluster_name, owned_by, change_time,
+             lead(change_time) OVER (PARTITION BY workspace_id, cluster_id ORDER BY change_time) AS next_change_time
+      FROM system.compute.clusters
+    "on": cluster.workspace_id = source.workspace_id
+      AND cluster.cluster_id = source.compute.cluster_id
+      AND source.start_time >= cluster.change_time
+      AND (source.start_time < cluster.next_change_time OR cluster.next_change_time IS NULL)
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+dimensions:
+  - name: Start Time
+    expr: source.start_time
+  - name: Start Date
+    expr: CAST(source.start_time AS DATE)
+  - name: Start Month
+    expr: DATE_TRUNC('MONTH', source.start_time)
+  - name: Workspace ID
+    expr: source.workspace_id
+  - name: Workspace Name
+    expr: ws.workspace_name
+  - name: Statement Type
+    expr: source.statement_type
+  - name: Execution Status
+    expr: source.execution_status
+  - name: Executed By
+    expr: source.executed_by
+  - name: Compute Type
+    expr: source.compute.type
+  - name: Warehouse Name
+    expr: warehouse.warehouse_name
+  - name: Warehouse Size
+    expr: warehouse.warehouse_size
+  - name: Cluster Name
+    expr: cluster.cluster_name
+  - name: From Result Cache
+    expr: source.from_result_cache
+
+measures:
+  - name: Query Count
+    expr: COUNT(1)
+  - name: Distinct Statements
+    expr: COUNT(DISTINCT source.statement_id)
+  - name: Failed Queries
+    expr: COUNT(1) FILTER (WHERE source.execution_status = 'FAILED')
+  - name: Distinct Users
+    expr: COUNT(DISTINCT source.executed_by_user_id)
+  - name: Avg Total Duration (ms)
+    expr: AVG(source.total_duration_ms)
+  - name: Total Duration (ms)
+    expr: SUM(source.total_duration_ms)
+  - name: Avg Execution Duration (ms)
+    expr: AVG(source.execution_duration_ms)
+  - name: Total Read Bytes
+    expr: SUM(source.read_bytes)
+  - name: Total Produced Rows
+    expr: SUM(source.produced_rows)
