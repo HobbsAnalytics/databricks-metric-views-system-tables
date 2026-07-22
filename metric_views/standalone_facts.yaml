@@ -4,7 +4,7 @@
 # clean_room_events_metrics, data_classification_metrics.
 #
 # DEPLOY STATUS:
-#   replication_states_metrics    - DEPLOYED + validated
+#   replication_states_metrics    - DEPLOYED
 #   clean_room_events_metrics     - DEPLOYED
 #   dq_monitoring_metrics         - BLOCKED: no SELECT on
 #     system.data_quality_monitoring.table_results (needs account-admin grant)
@@ -13,7 +13,7 @@
 #   Both YAMLs are ready; deploy once SELECT is granted.
 
 # ============================================================
-# dq_monitoring_metrics  (system.data_quality_monitoring.table_results)
+# dq_monitoring_metrics  (system.data_quality_monitoring.table_results)  [BLOCKED]
 # ============================================================
 --- dq_monitoring
 version: 1.1
@@ -22,29 +22,64 @@ comment: Data quality monitoring results at table grain (standalone fact).
 dimensions:
   - name: Event Time
     expr: source.event_time
+    comment: Time of the data quality monitoring evaluation.
   - name: Event Date
     expr: CAST(source.event_time AS DATE)
+    comment: Calendar date of the evaluation.
+    format:
+      type: date
+      date_format: year_month_day
   - name: Catalog Name
     expr: source.catalog_name
+    comment: Catalog of the monitored table.
   - name: Schema Name
     expr: source.schema_name
+    comment: Schema of the monitored table.
   - name: Table Name
     expr: source.table_name
+    comment: Name of the monitored table.
   - name: Status
     expr: source.status
+    comment: Overall monitoring status for the table.
   - name: Freshness Status
     expr: source.freshness.status
+    comment: Freshness check status for the table.
   - name: Completeness Status
     expr: source.completeness.status
+    comment: Completeness check status for the table.
 measures:
   - name: Results
     expr: COUNT(1)
+    comment: Number of monitoring result rows in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Tables
     expr: COUNT(DISTINCT source.table_id)
+    comment: Distinct number of monitored tables in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Unhealthy Results
     expr: COUNT(1) FILTER (WHERE source.status <> 'HEALTHY')
+    comment: Number of results whose status is not HEALTHY.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Total Downstream Tables
     expr: SUM(source.downstream_impact.num_downstream_tables)
+    comment: Sum of downstream tables potentially impacted.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
 
 # ============================================================
 # replication_states_metrics  (system.replication.states)
@@ -56,25 +91,58 @@ comment: Replication heartbeat states (account-level standalone fact, Private Pr
 dimensions:
   - name: Event Time
     expr: source.event_time
+    comment: When the event was emitted.
   - name: Event Date
     expr: CAST(source.event_time AS DATE)
+    comment: Calendar date of the heartbeat.
+    format:
+      type: date
+      date_format: year_month_day
   - name: Account ID
     expr: source.account_id
+    comment: Account the failover group belongs to.
   - name: Failover Group
     expr: source.failover_group_name
+    comment: Fully qualified name of the failover group.
   - name: Replication State
     expr: source.replication_state
+    comment: Replication state at heartbeat emission time.
   - name: Effective Primary Region
     expr: source.effective_primary_region
+    comment: Primary region at heartbeat emission time.
 measures:
   - name: Heartbeat Events
     expr: COUNT(1)
+    comment: Number of replication heartbeat events in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Failover Groups
     expr: COUNT(DISTINCT source.failover_group_name)
+    comment: Distinct number of failover groups in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Avg Replication Lag (ms)
     expr: AVG(source.replication_lag_ms)
+    comment: Average milliseconds since the last successful replication.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Max Replication Lag (ms)
     expr: MAX(source.replication_lag_ms)
+    comment: Maximum milliseconds since the last successful replication.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
 
 # ============================================================
 # clean_room_events_metrics  (system.access.clean_room_events)
@@ -86,26 +154,48 @@ comment: Clean room events (metastore/account scoped standalone fact).
 dimensions:
   - name: Event Time
     expr: source.event_time
+    comment: Timestamp when the event took place.
   - name: Event Date
     expr: CAST(source.event_time AS DATE)
+    comment: Calendar date of the event.
+    format:
+      type: date
+      date_format: year_month_day
   - name: Metastore ID
     expr: source.metastore_id
+    comment: The ID of the Unity Catalog metastore.
   - name: Clean Room Name
     expr: source.clean_room_name
+    comment: Name of the clean room associated with the event.
   - name: Central Clean Room ID
     expr: source.central_clean_room_id
+    comment: The ID of central clean room.
   - name: Event Type
     expr: source.event_type
+    comment: The type of the event.
   - name: Initiator Alias
     expr: source.initiator_collaborator_alias
+    comment: The alias of the collaborator who initiated the event.
 measures:
   - name: Clean Room Events
     expr: COUNT(1)
+    comment: Number of clean room events in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Clean Rooms
     expr: COUNT(DISTINCT source.central_clean_room_id)
+    comment: Distinct number of clean rooms in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
 
 # ============================================================
-# data_classification_metrics  (system.data_classification.results)
+# data_classification_metrics  (system.data_classification.results)  [BLOCKED]
 # ============================================================
 --- data_classification
 version: 1.1
@@ -114,28 +204,59 @@ comment: Data classification detections (current-state snapshot standalone fact)
 dimensions:
   - name: Latest Detected Time
     expr: source.latest_detected_time
+    comment: Most recent time this classification was detected.
   - name: Latest Detected Date
     expr: CAST(source.latest_detected_time AS DATE)
+    comment: Calendar date of the latest detection.
+    format:
+      type: date
+      date_format: year_month_day
   - name: Catalog Name
     expr: source.catalog_name
+    comment: Catalog of the classified table.
   - name: Schema Name
     expr: source.schema_name
+    comment: Schema of the classified table.
   - name: Table Name
     expr: source.table_name
+    comment: Name of the classified table.
   - name: Column Name
     expr: source.column_name
+    comment: Name of the classified column.
   - name: Data Type
     expr: source.data_type
+    comment: Data type of the classified column.
   - name: Class Tag
     expr: source.class_tag
+    comment: The sensitive-data class tag detected.
   - name: Confidence
     expr: source.confidence
+    comment: Confidence level of the detection.
   - name: Exclusion State
     expr: source.exclusion_state
+    comment: Whether the detection has been excluded.
 measures:
   - name: Detections
     expr: COUNT(1)
+    comment: Number of column-level detections in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Tables
     expr: COUNT(DISTINCT source.table_id)
+    comment: Distinct number of classified tables in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Class Tags
     expr: COUNT(DISTINCT source.class_tag)
+    comment: Distinct number of sensitive-data class tags in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0

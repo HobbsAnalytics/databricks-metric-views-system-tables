@@ -1,8 +1,8 @@
 version: 1.1
 
 # Fact: system.mlflow.run_metrics_history (one logged metric datapoint).
-# Snapshot joins to runs_latest and experiments_latest (both unique by their PK
-# -> plain equi-join, no point-in-time needed). Validated N:1.
+# Snapshot joins to runs_latest and experiments_latest (both unique by their PK).
+# Validated N:1.
 source: system.mlflow.run_metrics_history
 
 comment: MLflow logged metric datapoints with run and experiment context.
@@ -36,35 +36,79 @@ joins:
 dimensions:
   - name: Metric Time
     expr: source.metric_time
+    comment: The user-specified time when the metric was computed.
   - name: Metric Date
     expr: CAST(source.metric_time AS DATE)
+    comment: Calendar date the metric was computed.
+    format:
+      type: date
+      date_format: year_month_day
   - name: Workspace ID
     expr: source.workspace_id
+    comment: The ID of the workspace containing the MLflow run to which the metric was logged.
   - name: Workspace Name
     expr: ws.workspace_name
+    comment: The human-readable name of the workspace.
   - name: Metric Name
     expr: source.metric_name
+    comment: The metric name.
   - name: Experiment ID
     expr: source.experiment_id
+    comment: The ID of the MLflow experiment containing the run to which the metric was logged.
   - name: Experiment Name
     expr: experiment.experiment_name
+    comment: User-provided name of the experiment.
   - name: Run ID
     expr: source.run_id
+    comment: The ID of the MLflow run to which the metric was logged.
   - name: Run Name
     expr: run.run_name
+    comment: The name of the MLflow run.
   - name: Run Status
     expr: run.status
+    comment: The execution status of the MLflow run.
   - name: Run Created By
     expr: run.created_by
+    comment: The Databricks principal, user, or group that created the MLflow run.
 
 measures:
   - name: Metric Datapoints
     expr: COUNT(1)
+    comment: Number of logged metric datapoints in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Runs
     expr: COUNT(DISTINCT source.run_id)
+    comment: Distinct number of MLflow runs in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Experiments
     expr: COUNT(DISTINCT source.experiment_id)
+    comment: Distinct number of MLflow experiments in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Distinct Metrics
     expr: COUNT(DISTINCT source.metric_name)
+    comment: Distinct number of metric names in the slice.
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
   - name: Avg Metric Value
     expr: AVG(source.metric_value)
+    comment: Average of the logged metric values (across all metric names in the slice).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 4
