@@ -1,0 +1,82 @@
+version: 1.1
+
+# Fact: system.compute.instance_events (one instance state transition).
+# Inline SCD joins to instance_pools and clusters (point-in-time on event_time)
+# + node_types lookup. instance_pool_id / cluster_id populated for subsets;
+# joins are N:1 where the id is present. Validated N:1 (0 many-to-many).
+source: system.compute.instance_events
+
+comment: Compute instance lifecycle events with point-in-time pool/cluster and node-type context.
+
+joins:
+  - name: ws
+    source: system.access.workspaces_latest
+    "on": source.workspace_id = ws.workspace_id
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+  - name: pool
+    source: |
+      SELECT workspace_id, instance_pool_id, instance_pool_name, node_type, change_time,
+             lead(change_time) OVER (PARTITION BY workspace_id, instance_pool_id ORDER BY change_time) AS next_change_time
+      FROM system.compute.instance_pools
+    "on": pool.workspace_id = source.workspace_id
+      AND pool.instance_pool_id = source.instance_pool_id
+      AND source.event_time >= pool.change_time
+      AND (source.event_time < pool.next_change_time OR pool.next_change_time IS NULL)
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+  - name: cluster
+    source: |
+      SELECT workspace_id, cluster_id, cluster_name, owned_by, change_time,
+             lead(change_time) OVER (PARTITION BY workspace_id, cluster_id ORDER BY change_time) AS next_change_time
+      FROM system.compute.clusters
+    "on": cluster.workspace_id = source.workspace_id
+      AND cluster.cluster_id = source.cluster_id
+      AND source.event_time >= cluster.change_time
+      AND (source.event_time < cluster.next_change_time OR cluster.next_change_time IS NULL)
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+  - name: node
+    source: system.compute.node_types
+    "on": node.account_id = source.account_id AND node.node_type = source.node_type
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+dimensions:
+  - name: Event Time
+    expr: source.event_time
+  - name: Event Date
+    expr: CAST(source.event_time AS DATE)
+  - name: Workspace ID
+    expr: source.workspace_id
+  - name: Workspace Name
+    expr: ws.workspace_name
+  - name: Event Type
+    expr: source.event_type
+  - name: State
+    expr: source.state
+  - name: Availability Type
+    expr: source.availability_type
+  - name: Node Type
+    expr: source.node_type
+  - name: Cluster Name
+    expr: cluster.cluster_name
+  - name: Instance Pool Name
+    expr: pool.instance_pool_name
+
+measures:
+  - name: Events
+    expr: COUNT(1)
+  - name: Distinct Instances
+    expr: COUNT(DISTINCT source.instance_id)
+  - name: Spot Events
+    expr: COUNT(1) FILTER (WHERE source.availability_type = 'SPOT')
+  - name: On-Demand Events
+    expr: COUNT(1) FILTER (WHERE source.availability_type = 'ON_DEMAND')

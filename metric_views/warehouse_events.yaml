@@ -1,0 +1,63 @@
+version: 1.1
+
+# Fact: system.compute.warehouse_events (one SQL warehouse state event).
+# Grain (workspace_id, warehouse_id, event_time, event_type). Inline SCD
+# warehouse join, point-in-time on event_time. Validated N:1.
+source: system.compute.warehouse_events
+
+comment: SQL warehouse state events (scaling/start/stop) with point-in-time warehouse context.
+
+joins:
+  - name: ws
+    source: system.access.workspaces_latest
+    "on": source.workspace_id = ws.workspace_id
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+  - name: warehouse
+    source: |
+      SELECT workspace_id, warehouse_id, warehouse_name, warehouse_type, warehouse_size, change_time,
+             lead(change_time) OVER (PARTITION BY workspace_id, warehouse_id ORDER BY change_time) AS next_change_time
+      FROM system.compute.warehouses
+    "on": warehouse.workspace_id = source.workspace_id
+      AND warehouse.warehouse_id = source.warehouse_id
+      AND source.event_time >= warehouse.change_time
+      AND (source.event_time < warehouse.next_change_time OR warehouse.next_change_time IS NULL)
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+dimensions:
+  - name: Event Time
+    expr: source.event_time
+  - name: Event Date
+    expr: CAST(source.event_time AS DATE)
+  - name: Workspace ID
+    expr: source.workspace_id
+  - name: Workspace Name
+    expr: ws.workspace_name
+  - name: Warehouse ID
+    expr: source.warehouse_id
+  - name: Warehouse Name
+    expr: warehouse.warehouse_name
+  - name: Warehouse Type
+    expr: warehouse.warehouse_type
+  - name: Warehouse Size
+    expr: warehouse.warehouse_size
+  - name: Event Type
+    expr: source.event_type
+
+measures:
+  - name: Events
+    expr: COUNT(1)
+  - name: Distinct Warehouses
+    expr: COUNT(DISTINCT source.warehouse_id)
+  - name: Avg Active Clusters
+    expr: AVG(source.cluster_count)
+  - name: Max Active Clusters
+    expr: MAX(source.cluster_count)
+  - name: Scale Up Events
+    expr: COUNT(1) FILTER (WHERE source.event_type = 'SCALED_UP')
+  - name: Scale Down Events
+    expr: COUNT(1) FILTER (WHERE source.event_type = 'SCALED_DOWN')
