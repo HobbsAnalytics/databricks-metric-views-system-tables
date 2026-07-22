@@ -16,11 +16,15 @@ joins:
     rely:
       at_most_one_match: true
 
+  # FLAKE: node_types pre-joined for pool hardware. See FLAKE_JOINS.md.
   - name: pool
     source: |
-      SELECT workspace_id, instance_pool_id, instance_pool_name, node_type, change_time,
-             lead(change_time) OVER (PARTITION BY workspace_id, instance_pool_id ORDER BY change_time) AS next_change_time
-      FROM system.compute.instance_pools
+      SELECT p.workspace_id, p.instance_pool_id, p.instance_pool_name, p.node_type,
+             pn.core_count AS pool_core_count, pn.memory_mb AS pool_memory_mb,
+             p.change_time,
+             lead(p.change_time) OVER (PARTITION BY p.workspace_id, p.instance_pool_id ORDER BY p.change_time) AS next_change_time
+      FROM system.compute.instance_pools p
+      LEFT JOIN system.compute.node_types pn ON pn.account_id = p.account_id AND pn.node_type = p.node_type
     "on": pool.workspace_id = source.workspace_id
       AND pool.instance_pool_id = source.instance_pool_id
       AND source.event_time >= pool.change_time
@@ -70,6 +74,10 @@ dimensions:
     expr: cluster.cluster_name
   - name: Instance Pool Name
     expr: pool.instance_pool_name
+  - name: Pool Node Cores
+    expr: pool.pool_core_count
+  - name: Pool Node Memory MB
+    expr: pool.pool_memory_mb
 
 measures:
   - name: Events
