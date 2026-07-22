@@ -1,0 +1,70 @@
+version: 1.1
+
+# Fact: system.mlflow.run_metrics_history (one logged metric datapoint).
+# Snapshot joins to runs_latest and experiments_latest (both unique by their PK
+# -> plain equi-join, no point-in-time needed). Validated N:1.
+source: system.mlflow.run_metrics_history
+
+comment: MLflow logged metric datapoints with run and experiment context.
+
+joins:
+  - name: ws
+    source: system.access.workspaces_latest
+    "on": source.workspace_id = ws.workspace_id
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+  - name: run
+    source: |
+      SELECT workspace_id, run_id, run_name, status, created_by, start_time, end_time
+      FROM system.mlflow.runs_latest
+    "on": run.workspace_id = source.workspace_id AND run.run_id = source.run_id
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+  - name: experiment
+    source: |
+      SELECT workspace_id, experiment_id, name AS experiment_name
+      FROM system.mlflow.experiments_latest
+    "on": experiment.workspace_id = source.workspace_id AND experiment.experiment_id = source.experiment_id
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+dimensions:
+  - name: Metric Time
+    expr: source.metric_time
+  - name: Metric Date
+    expr: CAST(source.metric_time AS DATE)
+  - name: Workspace ID
+    expr: source.workspace_id
+  - name: Workspace Name
+    expr: ws.workspace_name
+  - name: Metric Name
+    expr: source.metric_name
+  - name: Experiment ID
+    expr: source.experiment_id
+  - name: Experiment Name
+    expr: experiment.experiment_name
+  - name: Run ID
+    expr: source.run_id
+  - name: Run Name
+    expr: run.run_name
+  - name: Run Status
+    expr: run.status
+  - name: Run Created By
+    expr: run.created_by
+
+measures:
+  - name: Metric Datapoints
+    expr: COUNT(1)
+  - name: Distinct Runs
+    expr: COUNT(DISTINCT source.run_id)
+  - name: Distinct Experiments
+    expr: COUNT(DISTINCT source.experiment_id)
+  - name: Distinct Metrics
+    expr: COUNT(DISTINCT source.metric_name)
+  - name: Avg Metric Value
+    expr: AVG(source.metric_value)
