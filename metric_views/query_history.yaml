@@ -29,11 +29,15 @@ joins:
     rely:
       at_most_one_match: true
 
+  # FLAKE: node_types pre-joined for cluster worker hardware. See FLAKE_JOINS.md.
   - name: cluster
     source: |
-      SELECT workspace_id, cluster_id, cluster_name, owned_by, change_time,
-             lead(change_time) OVER (PARTITION BY workspace_id, cluster_id ORDER BY change_time) AS next_change_time
-      FROM system.compute.clusters
+      SELECT c.workspace_id, c.cluster_id, c.cluster_name, c.owned_by, c.worker_node_type,
+             wn.core_count AS worker_core_count, wn.memory_mb AS worker_memory_mb,
+             c.change_time,
+             lead(c.change_time) OVER (PARTITION BY c.workspace_id, c.cluster_id ORDER BY c.change_time) AS next_change_time
+      FROM system.compute.clusters c
+      LEFT JOIN system.compute.node_types wn ON wn.account_id = c.account_id AND wn.node_type = c.worker_node_type
     "on": cluster.workspace_id = source.workspace_id
       AND cluster.cluster_id = source.compute.cluster_id
       AND source.start_time >= cluster.change_time
@@ -67,6 +71,8 @@ dimensions:
     expr: warehouse.warehouse_size
   - name: Cluster Name
     expr: cluster.cluster_name
+  - name: Cluster Worker Cores
+    expr: cluster.worker_core_count
   - name: From Result Cache
     expr: source.from_result_cache
 
