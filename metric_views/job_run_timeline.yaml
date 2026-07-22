@@ -1,0 +1,78 @@
+version: 1.1
+
+# Fact: system.lakeflow.job_run_timeline (one job-run time period).
+# Grain (workspace_id, run_id, period_start_time). Inline SCD job join,
+# point-in-time on period_start_time. Validated N:1 (0 many-to-many).
+source: system.lakeflow.job_run_timeline
+
+comment: Databricks job run executions with point-in-time job definition and workspace context.
+
+joins:
+  - name: ws
+    source: system.access.workspaces_latest
+    "on": source.workspace_id = ws.workspace_id
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+  - name: job
+    source: |
+      SELECT workspace_id, job_id, name AS job_name, creator_id, run_as, description, change_time,
+             lead(change_time) OVER (PARTITION BY workspace_id, job_id ORDER BY change_time) AS next_change_time
+      FROM system.lakeflow.jobs
+    "on": job.workspace_id = source.workspace_id
+      AND job.job_id = source.job_id
+      AND source.period_start_time >= job.change_time
+      AND (source.period_start_time < job.next_change_time OR job.next_change_time IS NULL)
+    cardinality: many_to_one
+    rely:
+      at_most_one_match: true
+
+dimensions:
+  - name: Period Start
+    expr: source.period_start_time
+  - name: Period Date
+    expr: CAST(source.period_start_time AS DATE)
+  - name: Period Month
+    expr: DATE_TRUNC('MONTH', source.period_start_time)
+  - name: Workspace ID
+    expr: source.workspace_id
+  - name: Workspace Name
+    expr: ws.workspace_name
+  - name: Job ID
+    expr: source.job_id
+  - name: Job Name
+    expr: job.job_name
+  - name: Job Creator
+    expr: job.creator_id
+  - name: Job Run As
+    expr: job.run_as
+  - name: Result State
+    expr: source.result_state
+  - name: Trigger Type
+    expr: source.trigger_type
+  - name: Run Type
+    expr: source.run_type
+  - name: Termination Code
+    expr: source.termination_code
+  - name: Termination Type
+    expr: source.termination_type
+
+measures:
+  - name: Run Periods
+    expr: COUNT(1)
+    comment: Number of run time-period rows in the slice.
+  - name: Distinct Runs
+    expr: COUNT(DISTINCT source.run_id)
+  - name: Distinct Jobs
+    expr: COUNT(DISTINCT source.job_id)
+  - name: Success Runs
+    expr: COUNT(DISTINCT source.run_id) FILTER (WHERE source.result_state = 'SUCCEEDED')
+  - name: Failed Runs
+    expr: COUNT(DISTINCT source.run_id) FILTER (WHERE source.result_state = 'FAILED')
+  - name: Avg Run Duration (s)
+    expr: AVG(source.run_duration_seconds)
+  - name: Total Run Duration (s)
+    expr: SUM(source.run_duration_seconds)
+  - name: Avg Queue Duration (s)
+    expr: AVG(source.queue_duration_seconds)
