@@ -10,7 +10,7 @@ dimensions, with some dimensions shared and some chained (dim → dim).
 1. **Pick a fact.** A fact = an event/measurement grain (one row = one measurable
    thing). Start from `billing.usage` and expand outward along discovered edges.
 2. **Derive candidate keys from metadata.** Read column names + comments from
-   `system_tables_schema.csv`. Signals we rely on, in priority order:
+   `source_data/system_tables_schema.csv`. Signals we rely on, in priority order:
    - Explicit comment language: "foreign key to join with …", "join with the …
      dimension table", "primary key".
    - `*_id` / `*_name` columns, including IDs nested inside structs

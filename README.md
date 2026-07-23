@@ -25,8 +25,9 @@ source tables). The deploy target is configurable — set `<catalog>` and
 ## Repository layout
 
 ```
-system_tables.csv                  # catalog of all system tables (from docs)
-system_tables_schema.csv           # per-column schema + comments (from information_schema)
+source_data/                       # source inputs the models are derived from
+  system_tables.csv                #   catalog of all system tables (from docs)
+  system_tables_schema.csv         #   per-column schema + comments (from information_schema)
 metric_views/                      # one YAML metric-view definition per fact (the deliverable)
 validation_sql/                    # validated SQL join spec per fact (proves each model is N:1)
 docs/                              # documentation, diagrams, and methodology
