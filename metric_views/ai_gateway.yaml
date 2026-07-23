@@ -6,7 +6,7 @@
 # ============================================================
 # ai_gateway_usage_metrics  (source: system.ai_gateway.usage)
 # ============================================================
---- usage
+--- ai_gateway_usage
 version: 1.1
 source: system.ai_gateway.usage
 comment: AI Gateway inference requests (tokens, latency) with workspace context.
@@ -112,7 +112,7 @@ measures:
 # ============================================================
 # ai_gateway_external_model_spend_metrics  (source: system.ai_gateway.external_model_spend)
 # ============================================================
---- external_model_spend
+--- ai_gateway_external_model_spend
 version: 1.1
 source: system.ai_gateway.external_model_spend
 comment: AI Gateway external model estimated spend with workspace context.

@@ -29,6 +29,9 @@ source_data/                       # source inputs the models are derived from
   system_tables.csv                #   catalog of all system tables (from docs)
   system_tables_schema.csv         #   per-column schema + comments (from information_schema)
 metric_views/                      # one YAML metric-view definition per fact (the deliverable)
+deploy/                            # deploy all metric views to your own catalog.schema
+  deploy_metric_views.py           #   loops the YAMLs -> CREATE ... WITH METRICS
+  requirements.txt / README.md     #   how to run it
 validation_sql/                    # validated SQL join spec per fact (proves each model is N:1)
 docs/                              # documentation, diagrams, and methodology
   methodology/                     #   the rules used to produce the models
@@ -90,6 +93,23 @@ A Unity Catalog metric view is created from a YAML spec that defines a `source`,
 [metric views](https://docs.databricks.com/aws/en/metric-views/) for the current
 spec, and [`metric_views/README.md`](metric_views/README.md) for the per-view
 status table and deployment notes.
+
+## Deploy to your own workspace
+
+Deploy all metric views to a catalog + schema of your choosing:
+
+```bash
+pip install -r deploy/requirements.txt
+export DATABRICKS_HOST=https://<your-workspace>.cloud.databricks.com
+export DATABRICKS_TOKEN=<your-pat>
+
+python deploy/deploy_metric_views.py --catalog my_cat --schema my_schema
+```
+
+The script loops over every YAML in `metric_views/` and runs the corresponding
+`CREATE OR REPLACE VIEW … WITH METRICS LANGUAGE YAML` statement. Use `--dry-run`
+to preview the SQL first. See [`deploy/README.md`](deploy/README.md) for auth,
+options, and prerequisites.
 
 ## Future: one semantic model across all system tables
 

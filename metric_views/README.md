@@ -57,9 +57,17 @@ sources select only the needed scalar columns (never `SELECT *` on a dim with ma
 
 ## Deployment
 
-Deploy each metric view with `CREATE OR REPLACE VIEW <name> WITH METRICS LANGUAGE
-YAML AS $$ <yaml> $$`. The `*.yaml` files here are the source of truth; wrap them in
-that statement to deploy. No helper views or ordering dependencies.
+Each metric view deploys with `CREATE OR REPLACE VIEW <name> WITH METRICS LANGUAGE
+YAML AS $$ <yaml> $$`. The `*.yaml` files here are the source of truth — no helper
+views or ordering dependencies. To deploy them all to your own `catalog.schema`,
+use the script in [`../deploy/`](../deploy/):
+
+```bash
+python deploy/deploy_metric_views.py --catalog my_cat --schema my_schema
+```
+
+A file with `--- <name>` markers holds multiple views (each → `<name>_metrics`);
+any other file is a single view named `<filename>_metrics`.
 
 ## Status
 
