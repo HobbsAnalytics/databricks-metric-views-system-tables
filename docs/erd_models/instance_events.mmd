@@ -1,0 +1,9 @@
+erDiagram
+    WORKSPACES ||--o{ INSTANCE_EVENTS : "workspace_id"
+    INSTANCE_POOLS ||--o{ INSTANCE_EVENTS : "instance_pool_id (PIT)"
+    CLUSTERS ||--o{ INSTANCE_EVENTS : "cluster_id (PIT)"
+    NODE_TYPES ||--o{ INSTANCE_EVENTS : "node_type"
+    NODE_TYPES_IP ||--o{ INSTANCE_POOLS : "node_type"
+    NODE_TYPES_W ||--o{ CLUSTERS : "worker node_type"
+    CLUSTER_POOL ||--o{ CLUSTERS : "worker_instance_pool_id (PIT)"
+    NODE_TYPES_P ||--o{ CLUSTER_POOL : "pool node_type"

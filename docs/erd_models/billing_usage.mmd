@@ -1,0 +1,13 @@
+erDiagram
+    WORKSPACES ||--o{ BILLING_USAGE : "workspace_id"
+    LIST_PRICES ||--o{ BILLING_USAGE : "sku_name (PIT)"
+    CLUSTERS ||--o{ BILLING_USAGE : "cluster_id (PIT, product-scoped)"
+    WAREHOUSES ||--o{ BILLING_USAGE : "warehouse_id (PIT)"
+    INSTANCE_POOLS ||--o{ BILLING_USAGE : "instance_pool_id (PIT)"
+    JOBS ||--o{ BILLING_USAGE : "job_id (PIT, JOBS)"
+    PIPELINES ||--o{ BILLING_USAGE : "dlt_pipeline_id (PIT, DLT)"
+    SERVED_ENTITIES ||--o{ BILLING_USAGE : "endpoint_id (PIT)"
+    NODE_TYPES ||--o{ CLUSTERS : "worker/driver node_type"
+    CLUSTER_POOL ||--o{ CLUSTERS : "worker_instance_pool_id (PIT)"
+    NODE_TYPES_2 ||--o{ CLUSTER_POOL : "pool node_type"
+    NODE_TYPES_3 ||--o{ INSTANCE_POOLS : "node_type"

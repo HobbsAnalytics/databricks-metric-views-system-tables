@@ -1,0 +1,4 @@
+erDiagram
+    WORKSPACES ||--o{ JOB_TASK_RUN_TIMELINE : "workspace_id"
+    JOBS ||--o{ JOB_TASK_RUN_TIMELINE : "job_id (PIT)"
+    JOB_TASKS ||--o{ JOB_TASK_RUN_TIMELINE : "job_id+task_key (PIT)"

@@ -97,11 +97,3 @@ status table and deployment notes.
 > letting a user analyze cost, compute utilization, job runs, query performance,
 > and lineage together through one conformed set of dimensions. The per-fact models
 > here are built to slot directly into that model when it lands.
-
-## Status
-
-24 of 26 fact metric views deployed and validated on
-`mfg_mc_se_sa.sys_table_semantics`, enriched with source comments, measure
-formats, and validated 2nd/3rd-level flake dimensions. The 2 remaining
-(`data_quality_monitoring.table_results`, `data_classification.results`) are
-written and ready; they need SELECT grants on their source system tables.

@@ -1,0 +1,7 @@
+erDiagram
+    WORKSPACES ||--o{ QUERY_HISTORY : "workspace_id"
+    WAREHOUSES ||--o{ QUERY_HISTORY : "warehouse_id (PIT)"
+    CLUSTERS ||--o{ QUERY_HISTORY : "cluster_id (PIT)"
+    NODE_TYPES_W ||--o{ CLUSTERS : "worker node_type"
+    CLUSTER_POOL ||--o{ CLUSTERS : "worker_instance_pool_id (PIT)"
+    NODE_TYPES_P ||--o{ CLUSTER_POOL : "pool node_type"

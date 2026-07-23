@@ -1,0 +1,4 @@
+erDiagram
+    WORKSPACES ||--o{ RUN_METRICS_HISTORY : "workspace_id"
+    RUNS_LATEST ||--o{ RUN_METRICS_HISTORY : "run_id"
+    EXPERIMENTS_LATEST ||--o{ RUN_METRICS_HISTORY : "experiment_id"

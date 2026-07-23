@@ -1,0 +1,7 @@
+erDiagram
+    WORKSPACES ||--o{ NODE_TIMELINE : "workspace_id"
+    CLUSTERS ||--o{ NODE_TIMELINE : "cluster_id (PIT)"
+    NODE_TYPES ||--o{ NODE_TIMELINE : "node_type"
+    NODE_TYPES_W ||--o{ CLUSTERS : "worker node_type"
+    CLUSTER_POOL ||--o{ CLUSTERS : "worker_instance_pool_id (PIT)"
+    NODE_TYPES_P ||--o{ CLUSTER_POOL : "pool node_type"
