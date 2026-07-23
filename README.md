@@ -17,9 +17,10 @@ dimensions, and reuse them everywhere.
 
 One metric view per **fact** system table, surrounded by its validated
 dimensions (a star, snowflaked where a dimension has its own foreign keys).
-26 fact tables were identified; **24 are deployed** to
-`mfg_mc_se_sa.sys_table_semantics` (2 are blocked only by missing SELECT grants
-on their source tables).
+26 fact tables were identified; **24 are deployable** to a target
+`<catalog>.<schema>` (2 are blocked only by missing SELECT grants on their
+source tables). The deploy target is configurable — set `<catalog>` and
+`<schema>` to wherever you want the metric views created.
 
 ## Repository layout
 

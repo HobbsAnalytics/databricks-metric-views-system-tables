@@ -7,7 +7,10 @@ dimensions are a planned future capability).
 
 ## Deploy target
 
-`mfg_mc_se_sa.sys_table_semantics` on the FEVM workspace (`fevm-mfg-mc-se-sa`).
+A target `<catalog>.<schema>` of your choosing — set these to wherever you want
+the metric views created. The definitions themselves are catalog-agnostic: they
+only reference `system.*` source tables, so the sole thing to substitute is the
+`<catalog>.<schema>` in the `CREATE OR REPLACE VIEW` statement.
 
 ## How point-in-time joins are expressed (inline SQL sources)
 
@@ -60,9 +63,9 @@ that statement to deploy. No helper views or ordering dependencies.
 
 ## Status
 
-**24 of 26 metric views deployed and query-validated** on
-`mfg_mc_se_sa.sys_table_semantics`. The 2 remaining are blocked only by missing
-SELECT grants on their source system tables (not a modeling gap).
+**24 of 26 metric views validated and deployable** to the target
+`<catalog>.<schema>`. The 2 remaining are blocked only by missing SELECT grants
+on their source system tables (not a modeling gap).
 
 | Metric view | Fact | Status |
 |-------------|------|--------|
@@ -103,7 +106,7 @@ Measures must be wrapped in `MEASURE()`; `SELECT *` is not supported.
 ```sql
 SELECT `Billing Origin Product`,
        MEASURE(`List Cost (USD)`) AS list_cost_usd
-FROM mfg_mc_se_sa.sys_table_semantics.billing_usage_metrics
+FROM <catalog>.<schema>.billing_usage_metrics
 WHERE `Usage Date` >= current_date() - INTERVAL 7 DAYS
 GROUP BY ALL ORDER BY list_cost_usd DESC;
 ```
