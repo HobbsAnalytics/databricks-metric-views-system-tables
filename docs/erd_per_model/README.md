@@ -1,8 +1,11 @@
-# Per-model ERDs
+# ERDs — per semantic model
 
-One Entity Relationship Diagram per semantic model (metric view). Each shows the
-model's **fact** at the center with its validated dimension joins, and any
-snowflake/flake chains above the dimensions.
+One Entity Relationship Diagram **per semantic model** (metric view) — the
+close-up, model-by-model view. For the whole-catalog picture (all facts in one
+diagram and grouped by family) see [`../erd_overview/`](../erd_overview/).
+
+Each diagram shows the model's **fact** at the center with its validated
+dimension joins, and any snowflake/flake chains above the dimensions.
 
 Reading the diagrams:
 - Crow's-foot points at the **many** side (the fact). Every edge is **N:1**
@@ -55,5 +58,5 @@ Each model has a `.mmd` (mermaid source, renders inline on GitHub) and a rendere
 (pending SELECT grants on their source tables).
 
 The workspace-wide ERD across all facts lives in
-[`../erd_families.md`](../erd_families.md); once multi-fact metric views are
+[`../erd_overview/erd_families.md`](../erd_overview/erd_families.md); once multi-fact metric views are
 supported these per-model stars compose into a single semantic model.

@@ -1,8 +1,14 @@
-# Layer-1 star models
+# Validation SQL — layer-1 star models
+
+Plain SQL that **validates** each metric view's join logic independently of the
+metric-view engine: one query per fact table, expressing the same joins the YAML
+uses. Running each and checking that the row count equals the base fact proves the
+model is N:1 (no fan-out). These are the reference/proof artifacts behind the
+deployed `metric_views/` definitions.
 
 One validated SQL model per fact table. Every join was SQL-tested for
 **0 row inflation** (fan-out) and confirmed **N:1 with no many-to-many**.
-Join rules follow `../relationships/PROCESS.md`: point-in-time on SCD
+Join rules follow `../docs/methodology/PROCESS.md`: point-in-time on SCD
 dimensions, snapshot equi-join on `_latest`/lookup dimensions, and
 per-`billing_origin_product` scoping where a foreign key is only valid
 for a subset of rows.
@@ -39,7 +45,7 @@ for a subset of rows.
 
 For each model: `count(base_fact) == count(fully_joined)` over a recent
 time window proves no edge fans out. Match rates and per-edge evidence
-live in `../relationships/relationships.csv`.
+live in `../docs/methodology/relationships.csv`.
 
 ## Next phase
 

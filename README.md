@@ -27,14 +27,17 @@ source tables). The deploy target is configurable — set `<catalog>` and
 ```
 system_tables.csv                  # catalog of all system tables (from docs)
 system_tables_schema.csv           # per-column schema + comments (from information_schema)
-relationships/                     # relationship discovery, validation, and rules
-  PROCESS.md                       #   the per-fact discovery/validation workflow
-  relationships.csv                #   every validated fact->dimension edge
-  fact_dimension_inventory.csv     #   fact vs dimension classification
-  FLAKE_JOINS.md                   #   snowflake/flake rules, loop-safety, PIT pattern
-models/                            # validated SQL join spec per fact (the source of truth)
-metric_views/                      # one YAML metric-view definition per fact
-docs/                              # ERDs + the metric-views product-team writeup
+metric_views/                      # one YAML metric-view definition per fact (the deliverable)
+validation_sql/                    # validated SQL join spec per fact (proves each model is N:1)
+docs/                              # documentation, diagrams, and methodology
+  methodology/                     #   the rules used to produce the models
+    PROCESS.md                     #     the per-fact discovery/validation workflow
+    relationships.csv              #     every validated fact->dimension edge
+    fact_dimension_inventory.csv   #     fact vs dimension classification
+    FLAKE_JOINS.md                 #     snowflake/flake rules, loop-safety, PIT pattern
+  erd_overview/                    #   whole-catalog ERDs (all facts: single + by-family)
+  erd_per_model/                   #   one ERD per semantic model (metric view)
+  flake_joins_for_product.md       #   metric-views product-team writeup
 ```
 
 ## Join-logic rules (how we keep every model relationally valid)
@@ -67,7 +70,7 @@ Every join was SQL-validated before deployment. The rules we followed:
    as a scalar keyed on equi-columns only, ignoring the range predicate). Instead we
    `LEFT JOIN` the sub-dimension inside the parent's inline `SELECT` so its
    attributes ride along as parent columns — one join level from the fact, N:1
-   preserved. See [`relationships/FLAKE_JOINS.md`](relationships/FLAKE_JOINS.md).
+   preserved. See [`docs/methodology/FLAKE_JOINS.md`](docs/methodology/FLAKE_JOINS.md).
 8. **The FK graph is a DAG — no join loops.** Flake chains always flow toward a
    leaf dimension (e.g. clusters → instance_pools → node_types → ∎) and terminate.
    The single self-referential edge (`query.history.cache_origin_statement_id`) is
@@ -93,7 +96,7 @@ status table and deployment notes.
 > a *collection* of fact-specific models that share common dimensions (workspace,
 > clusters, jobs, …) but remain separate views. Once **multi-fact metric views**
 > (relationships across facts via shared conformed dimensions) are supported, the
-> validated relationships in [`relationships/relationships.csv`](relationships/relationships.csv)
+> validated relationships in [`docs/methodology/relationships.csv`](docs/methodology/relationships.csv)
 > can be composed into a **single semantic model spanning all system tables** —
 > letting a user analyze cost, compute utilization, job runs, query performance,
 > and lineage together through one conformed set of dimensions. The per-fact models

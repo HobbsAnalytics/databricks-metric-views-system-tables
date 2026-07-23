@@ -100,6 +100,6 @@ single-table facts:
   `[change_time, next change_time)`. **Snapshot/lookup** dimensions (`_PK`,
   `_lookup`, `_window`) join by equi-key.
 - `BILLING_USAGE` cluster/job/pipeline edges are additionally **scoped by
-  `billing_origin_product`** (see `relationships/relationships.csv`).
+  `billing_origin_product`** (see `../methodology/relationships.csv`).
 - `QUERY_HISTORY` appears as both a fact (top) and the dimension for the two
   lineage facts, via the documented `statement_id` foreign key.
