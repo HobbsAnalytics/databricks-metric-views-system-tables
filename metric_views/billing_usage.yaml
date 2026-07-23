@@ -40,11 +40,19 @@ joins:
              c.data_security_mode,
              wn.core_count AS worker_core_count, wn.memory_mb AS worker_memory_mb, wn.gpu_count AS worker_gpu_count,
              dn.core_count AS driver_core_count, dn.memory_mb AS driver_memory_mb,
+             ip.instance_pool_name AS worker_pool_name, ipn.core_count AS worker_pool_core_count,
              c.change_time,
              lead(c.change_time) OVER (PARTITION BY c.workspace_id, c.cluster_id ORDER BY c.change_time) AS next_change_time
       FROM system.compute.clusters c
       LEFT JOIN system.compute.node_types wn ON wn.account_id = c.account_id AND wn.node_type = c.worker_node_type
       LEFT JOIN system.compute.node_types dn ON dn.account_id = c.account_id AND dn.node_type = c.driver_node_type
+      LEFT JOIN (
+        SELECT workspace_id, instance_pool_id, instance_pool_name, node_type, change_time,
+               lead(change_time) OVER (PARTITION BY workspace_id, instance_pool_id ORDER BY change_time) AS next_change_time
+        FROM system.compute.instance_pools
+      ) ip ON ip.workspace_id = c.workspace_id AND ip.instance_pool_id = c.worker_instance_pool_id
+        AND c.change_time >= ip.change_time AND (c.change_time < ip.next_change_time OR ip.next_change_time IS NULL)
+      LEFT JOIN system.compute.node_types ipn ON ipn.account_id = c.account_id AND ipn.node_type = ip.node_type
     "on": cluster.workspace_id = source.workspace_id
       AND cluster.cluster_id = source.usage_metadata.cluster_id
       AND source.billing_origin_product IN ('JOBS', 'ALL_PURPOSE', 'DLT')
@@ -200,6 +208,17 @@ dimensions:
   - name: Cluster Driver Cores
     expr: cluster.driver_core_count
     comment: Number of vCPUs for the cluster driver node type (from node_types).
+    format:
+      type: number
+      decimal_places:
+        type: exact
+        places: 0
+  - name: Worker Pool Name
+    expr: cluster.worker_pool_name
+    comment: Name of the instance pool backing the cluster's workers, if any (3rd-level flake via instance_pools).
+  - name: Worker Pool Cores
+    expr: cluster.worker_pool_core_count
+    comment: vCPUs of the worker instance pool's node type (3rd-level flake instance_pools -> node_types).
     format:
       type: number
       decimal_places:
